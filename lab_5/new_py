@@ -1,0 +1,103 @@
+import os
+import pandas as pd
+from pyarrow import parquet as pq
+import mysql.connector
+
+# MySQL configuration
+mysql_host = 'localhost'
+mysql_user = 'root'
+mysql_password = ''
+mysql_database = 'claim,product,policy'
+
+parquet_directory1 = 'C:/Users/lenovo/Documents/Python/lab_5/claim.parquet'
+parquet_directory2= 'C:/Users/lenovo/Documents/Python/lab_5/product.parquet'
+parquet_directory3 = 'C:/Users/lenovo/Documents/Python/lab_5/policy.parquet'
+
+
+cnx = mysql.connector.connect(
+    host=mysql_host,
+    user=mysql_user,
+    password=mysql_password,
+    database=mysql_database
+)
+cursor = cnx.cursor()
+
+parquet_files = [f for f in os.listdir(parquet_directory1) if f.endswith('.parquet')]
+
+for parquet_file in parquet_files:
+    table_name = os.path.splitext(parquet_file)[0]
+    
+    parquet_file_path = os.path.join(parquet_directory1, parquet_file)
+    table = pq.read_table(parquet_file_path)
+    schema = table.schema
+    
+    create_table_query = f"CREATE TABLE {table_name} ("
+    for field in schema:
+        column_name = field.name
+        column_type = field.type.to_pandas_dtype()
+        create_table_query += f"{column_name} {column_type}, "
+    create_table_query = create_table_query.rstrip(', ') + ")"
+    cursor.execute(create_table_query)
+    
+    df = table.to_pandas()
+    df.to_sql(table_name, con=cnx, if_exists='replace', index=False)
+
+cnx.commit()
+cursor.close()
+cnx.close()
+
+
+#Queries
+
+queries = [
+    """SELECT ProductGroup
+       FROM YourTableName
+       WHERE SaleNumbers = (
+           SELECT MAX(SaleNumbers)
+           FROM YourTableName
+       )""",
+    """SELECT ProductGroup
+       FROM YourTableName
+       WHERE YEAR(ClaimDate) = 2022
+       GROUP BY ProductGroup
+       ORDER BY COUNT(*) DESC
+       LIMIT 1""",
+    """SELECT SUM(Premium)
+       FROM YourTableName
+       WHERE YEAR(PolicyDate) = 2022""",
+    """SELECT COUNT(DISTINCT ProductGroup)
+       FROM YourTableName
+       WHERE ClaimNumber IS NOT NULL""",
+    """SELECT COUNT(DISTINCT PolicyNumber)
+       FROM YourTableName
+       WHERE YEAR(ClaimApprovalDate) = 2023
+       AND MONTH(ClaimApprovalDate) = 1""",
+    """SELECT COUNT(DISTINCT CustomerID)
+       FROM YourTableName
+       WHERE ClaimDate <= CURDATE()""",
+    """SELECT COUNT(DISTINCT PolicyNumber)
+       FROM YourTableName
+       WHERE ClaimNumber IS NULL""",
+    """SELECT COUNT(DISTINCT ProductID)
+       FROM YourTableName
+       WHERE ClaimNumber IS NULL
+       AND PolicyStatus = 'Active'""",
+    """SELECT COUNT(DISTINCT PolicyNumber)
+       FROM YourTableName
+       WHERE ClaimDate > PolicyExpirationDate""",
+    """SELECT COUNT(DISTINCT PolicyNumber)
+       FROM YourTableName
+       WHERE ClaimedAmount >= Premium"""
+]
+
+results = []
+
+for query in queries:
+    cursor.execute(query)
+    result = cursor.fetchone()
+    results.append(str(result[0]) if result else "NA")
+
+result_string = "-".join(results)
+
+print(result_string)
+
