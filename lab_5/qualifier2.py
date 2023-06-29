@@ -3,7 +3,7 @@ import pandas as pd
 import re
 import hashlib
 import matplotlib.pyplot as plt
-
+#this is the final code
 
 
 
@@ -24,7 +24,6 @@ last_name = data['patientDetails']['lastName']
 gender = data['patientDetails']['gender']
 birth_date = data['patientDetails']['birthDate']
 medicines = data['consultationData']['medicines']
-#this is the code
 
 print("Appointment ID:", appointment_id)
 print("Phone Number:", phone_number)
